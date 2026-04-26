@@ -1,0 +1,17 @@
+meta {
+  name: Recommended
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/recommended?type=hd_hun
+  body: none
+  auth: none
+}
+
+headers {
+  X-Ncore-nick: {{nick}}
+  X-Ncore-pass: {{pass}}
+  X-Ncore-PHPSESSID: {{phpsessid}}
+}

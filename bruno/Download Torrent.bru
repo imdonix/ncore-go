@@ -1,0 +1,21 @@
+meta {
+  name: Download Torrent
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/torrent/:id/download
+  body: none
+  auth: none
+}
+
+params:path {
+  id: 123456
+}
+
+headers {
+  X-Ncore-nick: {{nick}}
+  X-Ncore-pass: {{pass}}
+  X-Ncore-PHPSESSID: {{phpsessid}}
+}

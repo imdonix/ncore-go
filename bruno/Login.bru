@@ -1,0 +1,35 @@
+meta {
+  name: Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "{{username}}",
+    "password": "{{password}}",
+    "2factor": "{{twoFactor}}"
+  }
+}
+
+script:post-response {
+  const data = res.getBody();
+  if (data && data.cookies) {
+    if (data.cookies.nick) {
+      bru.setVar("nick", data.cookies.nick);
+    }
+    if (data.cookies.pass) {
+      bru.setVar("pass", data.cookies.pass);
+    }
+    if (data.cookies.PHPSESSID) {
+      bru.setVar("phpsessid", data.cookies.PHPSESSID);
+    }
+  }
+}
+

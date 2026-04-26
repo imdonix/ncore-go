@@ -1,0 +1,17 @@
+meta {
+  name: Activity
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/activity
+  body: none
+  auth: none
+}
+
+headers {
+  X-Ncore-nick: {{nick}}
+  X-Ncore-pass: {{pass}}
+  X-Ncore-PHPSESSID: {{phpsessid}}
+}

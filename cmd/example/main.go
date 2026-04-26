@@ -40,7 +40,6 @@ func main() {
 		log.Fatalf("Search failed: %v", err)
 	}
 
-
 	if len(result.Torrents) == 0 {
 		fmt.Println("No torrents found.")
 	} else {

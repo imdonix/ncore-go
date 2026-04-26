@@ -131,10 +131,10 @@ func parseTorrentDetail(data string, id string) (*Torrent, error) {
 	tType := ""
 	for i, name := range detailTypePattern.SubexpNames() {
 		switch name {
-			case "category":
-				category = tTypeMatch[i]
-			case "type":
-				tType = tTypeMatch[i]
+		case "category":
+			category = tTypeMatch[i]
+		case "type":
+			tType = tTypeMatch[i]
 		}
 	}
 
@@ -173,10 +173,10 @@ func parseTorrentDetail(data string, id string) (*Torrent, error) {
 	if peersMatch != nil {
 		for i, name := range detailPeersPattern.SubexpNames() {
 			switch name {
-				case "seed":
-					seed, _ = strconv.Atoi(peersMatch[i])
-				case "leech":
-					leech, _ = strconv.Atoi(peersMatch[i])
+			case "seed":
+				seed, _ = strconv.Atoi(peersMatch[i])
+			case "leech":
+				leech, _ = strconv.Atoi(peersMatch[i])
 			}
 		}
 	}
@@ -225,7 +225,7 @@ func parseActivity(data string) [][]string {
 	}
 
 	numItems := len(allMatches[0])
-	for i := 0; i < numItems; i++ {
+	for i := range numItems {
 		item := make([]string, len(allMatches))
 		for j := 0; j < len(allMatches); j++ {
 			if i < len(allMatches[j]) {

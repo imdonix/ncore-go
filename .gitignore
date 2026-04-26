@@ -1,2 +1,4 @@
+# Build artifacts
+bin/
 # Env files
 .env

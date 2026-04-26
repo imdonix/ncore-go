@@ -3,6 +3,7 @@ package rest
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,14 +15,14 @@ type Server struct {
 }
 
 func NewServer() *Server {
+
+	gin.DefaultWriter = os.Stdout
+	gin.DefaultErrorWriter = os.Stderr
+
 	s := &Server{
 		router: gin.Default(),
 	}
-	s.setupRoutes()
-	return s
-}
 
-func (s *Server) setupRoutes() {
 	s.router.POST("/login", s.handleLogin)
 	s.router.POST("/search", s.handleSearch)
 	s.router.GET("/torrent/:id", s.handleGetTorrent)
@@ -29,9 +30,12 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/activity", s.handleGetByActivity)
 	s.router.GET("/recommended", s.handleGetRecommended)
 	s.router.POST("/logout", s.handleLogout)
+
+	return s
 }
 
 func (s *Server) Start(addr string) error {
+	fmt.Printf("\n🚀 Server is running on http://localhost%s\n\n", addr)
 	return s.router.Run(addr)
 }
 

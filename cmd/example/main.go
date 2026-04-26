@@ -1,6 +1,8 @@
 package main
+
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"time"
@@ -9,7 +11,6 @@ import (
 )
 
 func main() {
-	// ... (rest of the file remains same, but using ncore. instead of ncore.)
 	username := os.Getenv("NCORE_USERNAME")
 	password := os.Getenv("NCORE_PASSWORD")
 
@@ -51,14 +52,25 @@ func main() {
 		fmt.Printf("  URL:   %s\n", top.URL)
 
 		// 4. Example: Download the first result (commented out to avoid cluttering disk)
-
-			fmt.Println("Downloading torrent file...")
-			path, err := client.Download(top, ".", false)
+		fmt.Println("Downloading torrent file...")
+		body, filename, err := client.Download(top)
+		if err != nil {
+			log.Printf("Download failed: %v", err)
+		} else {
+			defer body.Close()
+			out, err := os.Create(filename)
 			if err != nil {
-				log.Printf("Download failed: %v", err)
+				log.Printf("Failed to create file: %v", err)
 			} else {
-				fmt.Printf("Downloaded to: %s\n", path)
+				defer out.Close()
+				_, err = io.Copy(out, body)
+				if err != nil {
+					log.Printf("Failed to save file: %v", err)
+				} else {
+					fmt.Printf("Downloaded to: %s\n", filename)
+				}
 			}
+		}
 
 	}
 

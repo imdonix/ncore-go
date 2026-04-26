@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -226,31 +225,24 @@ func (c *Client) GetRecommended(tType SearchParamType) ([]*Torrent, error) {
 	return torrents, nil
 }
 
-func (c *Client) Download(torrent *Torrent, path string, override bool) (string, error) {
-	filePath, downloadURL := torrent.PrepareDownload(path)
-	if !override {
-		if _, err := os.Stat(filePath); err == nil {
-			return "", fmt.Errorf("%w: file already exists: %s", ErrDownloadFailed, filePath)
-		}
+func (c *Client) Download(torrent *Torrent) (io.ReadCloser, string, error) {
+	if !c.loggedIn {
+		return nil, "", ErrNotLoggedIn
 	}
+
+	filename, downloadURL := torrent.PrepareDownload("")
 
 	resp, err := c.httpClient.Get(downloadURL)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrConnectionError, err)
+		return nil, "", fmt.Errorf("%w: %v", ErrConnectionError, err)
 	}
-	defer resp.Body.Close()
 
-	out, err := os.Create(filePath)
-	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrDownloadFailed, err)
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, "", fmt.Errorf("%w: unexpected status code: %d", ErrDownloadFailed, resp.StatusCode)
 	}
-	defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrDownloadFailed, err)
-	}
-	return filePath, nil
+	return resp.Body, filename, nil
 }
 
 func (c *Client) Logout() {

@@ -19,7 +19,7 @@ func main() {
 	}
 
 	// 1. Initialize the client
-	client, err := ncore.NewClient(15*time.Second, nil)
+	client, err := ncore.NewClient(15 * time.Second)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}

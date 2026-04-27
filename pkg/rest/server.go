@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,18 +41,20 @@ func (s *Server) Start(addr string) error {
 }
 
 func (s *Server) getClient(c *gin.Context) (*ncore.Client, error) {
-	cookies := make(map[string]string)
-	for _, name := range ncore.AllowedCookies {
-		if val := c.GetHeader("X-Ncore-" + name); val != "" {
-			cookies[name] = val
+	token := c.GetHeader("X-Ncore-Auth")
+	if token == "" {
+		// Fallback to Authorization header
+		authHeader := c.GetHeader("Authorization")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			token = strings.TrimPrefix(authHeader, "Bearer ")
 		}
 	}
 
-	if len(cookies) == 0 {
-		return nil, fmt.Errorf("missing authentication cookies in headers")
+	if token == "" {
+		return nil, fmt.Errorf("missing authentication token in headers (X-Ncore-Auth or Authorization)")
 	}
 
-	return ncore.NewClient(15*time.Second, cookies)
+	return ncore.NewClientFromToken(15*time.Second, token)
 }
 
 func (s *Server) handleLogin(c *gin.Context) {
@@ -66,19 +69,21 @@ func (s *Server) handleLogin(c *gin.Context) {
 		return
 	}
 
-	client, err := ncore.NewClient(15*time.Second, nil)
+	client, err := ncore.NewClient(15 * time.Second)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	cookies, err := client.Login(loginReq.Username, loginReq.Password, loginReq.TwoFactor)
+	token, err := client.Login(loginReq.Username, loginReq.Password, loginReq.TwoFactor)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"cookies": cookies})
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+	})
 }
 
 func (s *Server) handleSearch(c *gin.Context) {

@@ -108,5 +108,3 @@ const (
 	URLDownloadLink    = "https://ncore.pro/torrents.php?action=download&id=%s&key=%s"
 	URLCookieDomain    = "ncore.pro"
 )
-
-var AllowedCookies = []string{"nick", "pass", "stilus", "nyelv", "PHPSESSID"}

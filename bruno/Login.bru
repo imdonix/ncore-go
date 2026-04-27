@@ -20,16 +20,8 @@ body:json {
 
 script:post-response {
   const data = res.getBody();
-  if (data && data.cookies) {
-    if (data.cookies.nick) {
-      bru.setVar("nick", data.cookies.nick);
-    }
-    if (data.cookies.pass) {
-      bru.setVar("pass", data.cookies.pass);
-    }
-    if (data.cookies.PHPSESSID) {
-      bru.setVar("phpsessid", data.cookies.PHPSESSID);
-    }
+  if (data && data.token) {
+    bru.setVar("token", data.token);
   }
 }
 

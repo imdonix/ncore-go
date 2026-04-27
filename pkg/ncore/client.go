@@ -1,6 +1,8 @@
 package ncore
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,10 +16,15 @@ import (
 
 type Client struct {
 	httpClient *http.Client
-	loggedIn   bool
 }
 
-func NewClient(timeout time.Duration, cookies map[string]string) (*Client, error) {
+var allowedCookies = []string{"nick", "pass", "stilus", "nyelv", "PHPSESSID"}
+
+func NewClient(timeout time.Duration) (*Client, error) {
+	return newClient(timeout, nil)
+}
+
+func newClient(timeout time.Duration, cookies map[string]string) (*Client, error) {
 	jar, _ := cookiejar.New(nil)
 	client := &Client{
 		httpClient: &http.Client{
@@ -30,7 +37,7 @@ func NewClient(timeout time.Duration, cookies map[string]string) (*Client, error
 		u, _ := url.Parse(URLIndex)
 		var httpCookies []*http.Cookie
 		for name, value := range cookies {
-			found := slices.Contains(AllowedCookies, name)
+			found := slices.Contains(allowedCookies, name)
 			if found {
 				httpCookies = append(httpCookies, &http.Cookie{
 					Name:   name,
@@ -40,40 +47,43 @@ func NewClient(timeout time.Duration, cookies map[string]string) (*Client, error
 			}
 		}
 		jar.SetCookies(u, httpCookies)
-		if client.checkLoggedIn() {
-			client.loggedIn = true
-		}
 	}
 
 	return client, nil
 }
 
-func (c *Client) checkLoggedIn() bool {
-	resp, err := c.httpClient.Get(URLIndex)
+func NewClientFromToken(timeout time.Duration, token string) (*Client, error) {
+	b, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-
-	if strings.Contains(resp.Request.URL.String(), "login.php") {
-		return false
+		return nil, fmt.Errorf("invalid token: %v", err)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
-	if strings.Contains(string(body), "<title>nCore</title>") {
-		return false
+	var cookies map[string]string
+	if err := json.Unmarshal(b, &cookies); err != nil {
+		return nil, fmt.Errorf("invalid token format: %v", err)
 	}
 
-	return true
+	return newClient(timeout, cookies)
 }
 
-func (c *Client) Login(username, password, twoFactorCode string) (map[string]string, error) {
-	if c.loggedIn && c.checkLoggedIn() {
-		return c.getCookies(), nil
+func (c *Client) AuthToken() (string, error) {
+	cookies := c.getCookies()
+	b, err := json.Marshal(cookies)
+	if err != nil {
+		return "", err
 	}
+	return base64.StdEncoding.EncodeToString(b), nil
+}
 
+func (c *Client) isLoginRedirect(resp *http.Response) bool {
+	if strings.Contains(resp.Request.URL.String(), "login.php") {
+		return true
+	}
+	return false
+}
+
+func (c *Client) Login(username, password, twoFactorCode string) (string, error) {
 	c.httpClient.Jar, _ = cookiejar.New(nil)
-	c.loggedIn = false
 
 	data := url.Values{}
 	data.Set("nev", username)
@@ -87,7 +97,7 @@ func (c *Client) Login(username, password, twoFactorCode string) (map[string]str
 
 	resp, err := c.httpClient.PostForm(URLLogin, data)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrConnectionError, err)
+		return "", fmt.Errorf("%w: %v", ErrConnectionError, err)
 	}
 	defer resp.Body.Close()
 
@@ -98,18 +108,17 @@ func (c *Client) Login(username, password, twoFactorCode string) (map[string]str
 		if twoFactorCode != "" {
 			errorMsg += ". Invalid 2FA code or wait 5 minutes between login attempts."
 		}
-		return nil, fmt.Errorf("%w: %s", ErrLoginFailed, errorMsg)
+		return "", fmt.Errorf("%w: %s", ErrLoginFailed, errorMsg)
 	}
 
-	c.loggedIn = true
-	return c.getCookies(), nil
+	return c.AuthToken()
 }
 
 func (c *Client) getCookies() map[string]string {
 	u, _ := url.Parse(URLIndex)
 	cookies := make(map[string]string)
 	for _, cookie := range c.httpClient.Jar.Cookies(u) {
-		for _, allowed := range AllowedCookies {
+		for _, allowed := range allowedCookies {
 			if cookie.Name == allowed {
 				cookies[cookie.Name] = cookie.Value
 			}
@@ -119,16 +128,16 @@ func (c *Client) getCookies() map[string]string {
 }
 
 func (c *Client) Search(pattern string, tType SearchParamType, where SearchParamWhere, sortBy ParamSort, sortOrder ParamSeq, page int) (*SearchResult, error) {
-	if !c.loggedIn {
-		return nil, ErrNotLoggedIn
-	}
-
 	searchURL := fmt.Sprintf(URLDownloadPattern, page, string(tType), string(sortBy), string(sortOrder), url.QueryEscape(pattern), string(where))
 	resp, err := c.httpClient.Get(searchURL)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrConnectionError, err)
 	}
 	defer resp.Body.Close()
+
+	if c.isLoginRedirect(resp) {
+		return nil, ErrNotLoggedIn
+	}
 
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
@@ -143,10 +152,6 @@ func (c *Client) Search(pattern string, tType SearchParamType, where SearchParam
 }
 
 func (c *Client) GetTorrent(id string) (*Torrent, error) {
-	if !c.loggedIn {
-		return nil, ErrNotLoggedIn
-	}
-
 	detailURL := fmt.Sprintf(URLDetailPattern, id)
 	resp, err := c.httpClient.Get(detailURL)
 	if err != nil {
@@ -154,20 +159,24 @@ func (c *Client) GetTorrent(id string) (*Torrent, error) {
 	}
 	defer resp.Body.Close()
 
+	if c.isLoginRedirect(resp) {
+		return nil, ErrNotLoggedIn
+	}
+
 	body, _ := io.ReadAll(resp.Body)
 	return parseTorrentDetail(string(body), id)
 }
 
 func (c *Client) GetByActivity() ([]*Torrent, error) {
-	if !c.loggedIn {
-		return nil, ErrNotLoggedIn
-	}
-
 	resp, err := c.httpClient.Get(URLActivity)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrConnectionError, err)
 	}
 	defer resp.Body.Close()
+
+	if c.isLoginRedirect(resp) {
+		return nil, ErrNotLoggedIn
+	}
 
 	body, _ := io.ReadAll(resp.Body)
 	params := parseActivity(string(body))
@@ -200,15 +209,15 @@ func (c *Client) GetByActivity() ([]*Torrent, error) {
 }
 
 func (c *Client) GetRecommended(tType SearchParamType) ([]*Torrent, error) {
-	if !c.loggedIn {
-		return nil, ErrNotLoggedIn
-	}
-
 	resp, err := c.httpClient.Get(URLRecommended)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrConnectionError, err)
 	}
 	defer resp.Body.Close()
+
+	if c.isLoginRedirect(resp) {
+		return nil, ErrNotLoggedIn
+	}
 
 	body, _ := io.ReadAll(resp.Body)
 	ids := parseRecommendedIds(string(body))
@@ -226,15 +235,16 @@ func (c *Client) GetRecommended(tType SearchParamType) ([]*Torrent, error) {
 }
 
 func (c *Client) Download(torrent *Torrent) (io.ReadCloser, string, error) {
-	if !c.loggedIn {
-		return nil, "", ErrNotLoggedIn
-	}
-
 	filename, downloadURL := torrent.PrepareDownload("")
 
 	resp, err := c.httpClient.Get(downloadURL)
 	if err != nil {
 		return nil, "", fmt.Errorf("%w: %v", ErrConnectionError, err)
+	}
+
+	if c.isLoginRedirect(resp) {
+		resp.Body.Close()
+		return nil, "", ErrNotLoggedIn
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -247,5 +257,4 @@ func (c *Client) Download(torrent *Torrent) (io.ReadCloser, string, error) {
 
 func (c *Client) Logout() {
 	c.httpClient.Jar, _ = cookiejar.New(nil)
-	c.loggedIn = false
 }

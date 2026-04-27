@@ -17,8 +17,7 @@ A Go library and REST API for interacting with torrents from [ncore.pro](https:/
 ## Usage
 
 ```bash
-docker build -t ncore-go .
-docker run -p 8080:8080 ncore-go
+docker run -p 8080:8080 imdonix/ncore:latest
 ```
 
 ## REST API

@@ -10,4 +10,4 @@ format:
 	go fmt ./...
 
 docker:
-	docker build -t ncore-go-server .
+	docker build -t ncore .

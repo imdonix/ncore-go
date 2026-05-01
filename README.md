@@ -30,6 +30,7 @@ The server runs on port 8080 by default.
 |--------|----------|-------------|
 | `POST` | `/login` | Authenticate and get token |
 | `POST` | `/search` | Search torrents |
+| `GET` | `/verify` | Verify auth token is validity |
 | `GET` | `/torrent/:id` | Get torrent details |
 | `GET` | `/torrent/:id/download` | Download torrent file |
 | `GET` | `/activity` | Get Hit & Run list |

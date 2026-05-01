@@ -1,6 +1,7 @@
 package ncore
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -59,6 +60,10 @@ func NewSizeFromBytes(bytes float64) Size {
 func (s Size) String() string {
 	multiplier := unitSize[s.unit]
 	return fmt.Sprintf("%.2f %s", s.bytes/multiplier, s.unit)
+}
+
+func (s Size) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
 }
 
 func (s Size) Bytes() int64 {

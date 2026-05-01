@@ -1,0 +1,20 @@
+meta {
+  name: Verify
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/verify
+  body: none
+  auth: inherit
+}
+
+headers {
+  X-Ncore-Auth: {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

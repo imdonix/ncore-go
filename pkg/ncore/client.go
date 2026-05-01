@@ -127,6 +127,22 @@ func (c *Client) getCookies() map[string]string {
 	return cookies
 }
 
+
+func (c *Client) Verify() (error) {
+
+	resp, err := c.httpClient.Get(URLIndex)
+	if err != nil {
+		return ErrNotLoggedIn
+	}
+	defer resp.Body.Close()
+
+	if c.isLoginRedirect(resp) {
+		return ErrNotLoggedIn
+	}
+
+	return nil
+}
+
 func (c *Client) Search(pattern string, tType SearchParamType, where SearchParamWhere, sortBy ParamSort, sortOrder ParamSeq, page int) (*SearchResult, error) {
 	searchURL := fmt.Sprintf(URLDownloadPattern, page, string(tType), string(sortBy), string(sortOrder), url.QueryEscape(pattern), string(where))
 	resp, err := c.httpClient.Get(searchURL)

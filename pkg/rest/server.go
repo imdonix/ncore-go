@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -26,6 +25,7 @@ func NewServer() *Server {
 
 	s.router.POST("/login", s.handleLogin)
 	s.router.POST("/search", s.handleSearch)
+	s.router.GET("/verify", s.verify)
 	s.router.GET("/torrent/:id", s.handleGetTorrent)
 	s.router.GET("/torrent/:id/download", s.handleDownload)
 	s.router.GET("/activity", s.handleGetByActivity)
@@ -42,14 +42,6 @@ func (s *Server) Start(addr string) error {
 
 func (s *Server) getClient(c *gin.Context) (*ncore.Client, error) {
 	token := c.GetHeader("X-Ncore-Auth")
-	if token == "" {
-		// Fallback to Authorization header
-		authHeader := c.GetHeader("Authorization")
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			token = strings.TrimPrefix(authHeader, "Bearer ")
-		}
-	}
-
 	if token == "" {
 		return nil, fmt.Errorf("missing authentication token in headers (X-Ncore-Auth or Authorization)")
 	}
@@ -83,6 +75,24 @@ func (s *Server) handleLogin(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": token,
+	})
+}
+
+func (s *Server) verify(c *gin.Context) {
+	client, err := s.getClient(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = client.Verify()
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "ok",
 	})
 }
 
